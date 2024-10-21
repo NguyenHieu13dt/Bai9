@@ -1,156 +1,102 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import CountryPicker from 'react-native-country-picker-modal'; // Dùng để chọn mã quốc gia
-import { FontAwesome } from '@expo/vector-icons'; // Để dùng icon của Google và Facebook
-import { isValidPhoneNumber } from 'libphonenumber-js'; // Dùng để kiểm tra số điện thoại hợp lệ
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
 
-const SignInScreen = () => {
-  const [countryCode, setCountryCode] = useState('VN'); // Mã quốc gia mặc định là Việt Nam (VN)
-  const [callingCode, setCallingCode] = useState('84'); // Mã vùng Việt Nam (84)
-  const [phoneNumber, setPhoneNumber] = useState(''); // Số điện thoại người dùng nhập
+const SignInScreen = ({ navigation }) => {
+  const [phone, setPhone] = useState('');
+  const [isValid, setIsValid] = useState(true);
 
-  // Hàm kiểm tra tính hợp lệ của số điện thoại
-  const handleSignIn = () => {
-    const fullPhoneNumber = `+${callingCode}${phoneNumber}`;
-    if (isValidPhoneNumber(fullPhoneNumber)) {
-      alert('Số điện thoại hợp lệ!');
+  const validatePhone = (text) => {
+    const phoneRegex = /^[0-9]{10}$/;
+    return phoneRegex.test(text);
+  };
+
+  const handleContinue = async () => {
+    const plainPhone = phone.replace(/\s/g, ''); // Loại bỏ khoảng trắng để kiểm tra
+    if (validatePhone(plainPhone)) {
+      setIsValid(true);
+      try {
+        await AsyncStorage.setItem('phoneNumber', plainPhone); // Lưu số điện thoại vào AsyncStorage
+        navigation.navigate('Home'); // Điều hướng đến HomeScreen khi hợp lệ
+      } catch (error) {
+        console.log('Lỗi khi lưu số điện thoại: ', error);
+      }
     } else {
-      alert('Số điện thoại không hợp lệ. Vui lòng kiểm tra lại!');
+      Alert.alert("Lỗi", "Số điện thoại không hợp lệ. Hãy nhập đúng 10 chữ số.");
+      setIsValid(false);
     }
   };
 
+  const handlePhoneChange = (text) => {
+    const formattedText = text.replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
+    setPhone(formattedText);
+  };
+
   return (
-    <View style={styles.container}>
-      {/* Hình ảnh phía trên */}
-      <Image
-        source={require('./assets/6011.png')} // Thay bằng hình ảnh của bạn
-        style={styles.image}
+    <KeyboardAvoidingView style={styles.container} behavior="padding">
+      <Text style={styles.title}>Đăng nhập</Text>
+      <Text style={styles.subtitle}>Nhập số điện thoại</Text>
+      <Text style={styles.description}>
+        Dùng số điện thoại để đăng nhập hoặc đăng ký tài khoản tại OneHousing Pro
+      </Text>
+      <TextInput
+        style={[styles.input, !isValid && styles.inputError]}
+        placeholder="Nhập số điện thoại của bạn"
+        keyboardType="numeric"
+        value={phone}
+        onChangeText={handlePhoneChange}
       />
-
-      {/* Tiêu đề */}
-      <Text style={styles.title}>Get your groceries with nectar</Text>
-
-      {/* Trường nhập số điện thoại */}
-      <View style={styles.phoneContainer}>
-        {/* Picker mã quốc gia */}
-        <CountryPicker
-          countryCode={countryCode} // Mã quốc gia hiện tại
-          withCallingCode // Hiển thị mã gọi quốc gia
-          withFlag // Hiển thị cờ quốc gia
-          onSelect={(country) => {
-            setCountryCode(country.cca2); // Cập nhật mã quốc gia
-            setCallingCode(country.callingCode[0]); // Cập nhật mã gọi quốc gia
-          }}
-        />
-        {/* Hiển thị mã gọi quốc gia */}
-        <Text style={styles.callingCode}>+{callingCode}</Text>
-        {/* Ô nhập số điện thoại */}
-        <TextInput
-          style={styles.phoneInput}
-          placeholder="Số điện thoại"
-          keyboardType="phone-pad"
-          value={phoneNumber}
-          onChangeText={setPhoneNumber}
-        />
-      </View>
-
-      {/* Nút đăng nhập */}
-      <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
-        <Text style={styles.signInButtonText}>Sign In</Text>
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: phone.length === 0 ? '#ccc' : '#007BFF' }]} 
+        disabled={phone.length === 0}
+        onPress={handleContinue}
+      >
+        <Text style={styles.buttonText}>Tiếp tục</Text>
       </TouchableOpacity>
-
-      {/* Nút đăng nhập bằng Google và Facebook */}
-      <Text style={styles.socialText}>Or connect with social media</Text>
-
-      <TouchableOpacity style={styles.socialButtonGoogle}>
-        <FontAwesome name="google" size={24} color="white" />
-        <Text style={styles.socialButtonText}>Continue with Google</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.socialButtonFacebook}>
-        <FontAwesome name="facebook" size={24} color="white" />
-        <Text style={styles.socialButtonText}>Continue with Facebook</Text>
-      </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 20,
     backgroundColor: '#fff',
-  },
-  image: {
-    width: '100%',
-    height: '40%',
-    resizeMode: 'cover',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginTop: 20,
+    marginBottom: 20,
+  },
+  subtitle: {
+    fontSize: 18,
+    marginBottom: 5,
+  },
+  description: {
+    fontSize: 14,
+    color: '#888',
     marginBottom: 30,
   },
-  phoneContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+  input: {
+    height: 50,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
     marginBottom: 20,
-    width: '80%',
   },
-  callingCode: {
-    marginLeft: 10,
-    fontSize: 18,
+  inputError: {
+    borderColor: 'red',
   },
-  phoneInput: {
-    marginLeft: 10,
-    fontSize: 18,
-    flex: 1,
-  },
-  signInButton: {
-    backgroundColor: '#3498db',
+  button: {
     paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-    marginBottom: 20,
-    width: '80%',
+    borderRadius: 5,
     alignItems: 'center',
   },
-  signInButtonText: {
+  buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  socialText: {
-    marginBottom: 10,
-    color: '#555',
-  },
-  socialButtonGoogle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4285F4',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-    width: '80%',
-    marginBottom: 10,
-  },
-  socialButtonFacebook: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3b5998',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-    width: '80%',
-  },
-  socialButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    marginLeft: 10,
   },
 });
 
